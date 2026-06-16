@@ -7,7 +7,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# 🌟 核心修改 1：赋予工作流创建和写入 Release 的权限
+# 🌟 必须保留：赋予工作流创建 Release 的权限
 permissions:
   contents: write
 
@@ -31,43 +31,24 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build APKs
-        run: gradle :app:assembleDebug :app:assembleRelease
+        run: gradle :app:assembleDebug
 
-      # 这里的编译产物保留，方便在 Actions 页面临时查看
-      - name: Upload debug APK to Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: coloros-feiniu-bridge-debug
-          path: app/build/outputs/apk/debug/*.apk
-
-      # 🌟 核心修改 2：使用签名工具对 Release APK 进行对齐和自动签名
-      # 提示：LSPosed 模块通常直接用 Android 默认的调试签名（Debug Key）即可正常工作
-      - name: Sign Release APK
-        uses: r0adkll/sign-android-release@v1
-        id: sign_app
-        with:
-          releaseDirectory: app/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-          alias: ${{ secrets.ALIAS }}
-          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-        continue-on-error: true # 如果你没有配置 Secrets 密钥，这一步会跳过，下面会默认发布 Debug 版
-
-      # 🌟 核心修改 3：自动生成 Tag 并发布到 Release 页面
+      # 🌟 核心简化：直接把编译好的 Debug APK 丢进 Release 页面
+      # 这样既不需要配置任何 Secrets，编译出来的 APK 还自带默认签名，下载即装！
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # 自动生成一个带有当前时间戳的唯一 Tag 标签，防止冲突（例如: v20260616-1305）
-          tag_name: v${{ github.run_id }}-${{ github.run_number }}
-          name: "ColorOS Feiniu Bridge 自动构建版"
+          tag_name: v1.0.${{ github.run_number }}
+          name: "ColorOS Feiniu Bridge 自动编译版 (r${{ github.run_number }})"
           body: |
             这是由 GitHub Actions 自动编译生成的最新版本。
             
-            **变更日志：**
-            - 现代化重构 AndroidManifest.xml 作用域声明
-            - 彻底移除过时的 `scope.list` 文件
+            **更新说明：**
+            - 现代化重构 `AndroidManifest.xml`
+            - 移除旧版 `scope.list`，完美适配新版 LSPosed 作用域
+            
+            *提示：请下载下方的 `coloros-feiniu-bridge-debug.apk` 安装使用。*
           draft: false
           prerelease: false
           files: |
             app/build/outputs/apk/debug/*.apk
-            ${{ steps.sign_app.outputs.signedReleaseFile }}
