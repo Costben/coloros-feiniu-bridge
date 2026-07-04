@@ -13,9 +13,29 @@ class FeiniuBridgeHook : IXposedHookLoadPackage {
         if (lpparam.packageName != TARGET_PACKAGE) return
 
         runCatching {
-            val tokenDecryptor = XposedHelpers.findClass(TOKEN_DECRYPTOR_CLASS, lpparam.classLoader)
-            XposedBridge.hookAllMethods(tokenDecryptor, PREFIX_METHOD, PrefixFallbackHook(lpparam))
-            log("installed for ${lpparam.packageName}")
+            val methods = TOKEN_DECRYPTOR_CLASSES
+                .mapNotNull { className ->
+                    runCatching {
+                        XposedHelpers.findClass(className, lpparam.classLoader)
+                    }.getOrNull()
+                }
+                .flatMap { tokenDecryptor ->
+                    tokenDecryptor.declaredMethods.filter { method ->
+                        method.name == PREFIX_METHOD &&
+                            method.returnType == String::class.java &&
+                            method.parameterTypes.isEmpty()
+                    }
+                }
+            methods.forEach { method ->
+                method.isAccessible = true
+                XposedBridge.hookMethod(method, PrefixFallbackHook(lpparam))
+            }
+
+            if (methods.isEmpty()) {
+                log("prefix fallback unavailable for ${lpparam.packageName}")
+            } else {
+                log("installed for ${lpparam.packageName}")
+            }
         }.onFailure { error ->
             log("install failed: ${error.javaClass.simpleName}: ${error.message}")
         }
@@ -196,7 +216,10 @@ class FeiniuBridgeHook : IXposedHookLoadPackage {
 
     companion object {
         private const val TARGET_PACKAGE = "com.coloros.gallery3d"
-        private const val TOKEN_DECRYPTOR_CLASS = "com.oplus.aiunit.vision.erq"
+        private val TOKEN_DECRYPTOR_CLASSES = arrayOf(
+            "com.oplus.aiunit.vision.erq",
+            "com.oplus.aiunit.vision.in80",
+        )
         private const val PREFIX_METHOD = "e"
         private const val KNOWN_PREFIX = "tRiM@2025#GwToken!sEcReT*kEy&vALu"
         private const val DEX_HEADER_SIZE = 0x70
