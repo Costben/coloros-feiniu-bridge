@@ -13,7 +13,7 @@ class FeiniuBridgeHook : IXposedHookLoadPackage {
         if (lpparam.packageName != TARGET_PACKAGE) return
 
         runCatching {
-            val methods = TOKEN_DECRYPTOR_CLASSES
+            val methods = TokenDecryptorTargets.classNames
                 .mapNotNull { className ->
                     runCatching {
                         XposedHelpers.findClass(className, lpparam.classLoader)
@@ -216,10 +216,6 @@ class FeiniuBridgeHook : IXposedHookLoadPackage {
 
     companion object {
         private const val TARGET_PACKAGE = "com.coloros.gallery3d"
-        private val TOKEN_DECRYPTOR_CLASSES = arrayOf(
-            "com.oplus.aiunit.vision.erq",
-            "com.oplus.aiunit.vision.in80",
-        )
         private const val PREFIX_METHOD = "e"
         private const val KNOWN_PREFIX = "tRiM@2025#GwToken!sEcReT*kEy&vALu"
         private const val DEX_HEADER_SIZE = 0x70
