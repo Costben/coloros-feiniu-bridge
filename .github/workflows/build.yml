@@ -29,14 +29,46 @@ jobs:
       - name: Build APKs
         run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
 
+      - name: Sign release APK
+        if: github.event_name != 'pull_request'
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          SIGNING_KEYSTORE="$RUNNER_TEMP/coloros-feiniu-bridge-release.p12"
+          printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$SIGNING_KEYSTORE"
+          chmod 600 "$SIGNING_KEYSTORE"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --ks "$SIGNING_KEYSTORE" \
+            --ks-key-alias "$SIGNING_KEY_ALIAS" \
+            --ks-pass env:SIGNING_STORE_PASSWORD \
+            --key-pass env:SIGNING_KEY_PASSWORD \
+            --out app/build/outputs/apk/release/app-release-signed.apk \
+            app/build/outputs/apk/release/app-release-unsigned.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify \
+            --verbose \
+            --print-certs \
+            app/build/outputs/apk/release/app-release-signed.apk
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: coloros-feiniu-bridge-debug
           path: app/build/outputs/apk/debug/*.apk
 
-      - name: Upload release APK
+      - name: Upload signed release APK
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coloros-feiniu-bridge-release-signed
+          path: app/build/outputs/apk/release/app-release-signed.apk
+
+      - name: Upload unsigned pull request APK
+        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: coloros-feiniu-bridge-release-unsigned
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk

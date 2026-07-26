@@ -64,7 +64,7 @@ LSPosed/Xposed 要求：
 
 ## 构建
 
-GitHub Actions 会在每次 push、pull request 和手动触发时自动构建 APK，并上传 debug/release unsigned APK artifact。
+GitHub Actions 会在每次 push、pull request 和手动触发时自动构建 APK。主线 push 和手动构建会上传使用项目固定 release key 签名的 APK；外部 pull request 因无法读取仓库 Secrets，只上传 unsigned release APK。
 
 也可以用 Android Studio 打开本仓库，然后运行 `app` 构建任务。
 
@@ -80,7 +80,7 @@ gradle :app:assembleRelease
 gradle wrapper --gradle-version 8.7
 ```
 
-构建产物位置：
+本地构建产物位置：
 
 ```text
 app/build/outputs/apk/release/app-release-unsigned.apk
@@ -88,9 +88,23 @@ app/build/outputs/apk/release/app-release-unsigned.apk
 
 release APK 需要自行签名后再分发。
 
+GitHub Actions 主线构建会额外生成：
+
+```text
+app/build/outputs/apk/release/app-release-signed.apk
+```
+
+固定 release 证书 SHA-256：
+
+```text
+37653B3C5DF69F83C3BB16C6BF7ADC7BE25AD0B34EB0EDCFA27A33CD2F3EB1BD
+```
+
+从 `0.1.4` 开始，正式安装和后续覆盖升级均使用该证书签名的 release APK。CI debug APK 使用临时 debug key，不作为稳定升级包。
+
 ## 安装
 
-1. 安装已签名 APK，或者安装 GitHub Actions 生成的 debug APK。
+1. 安装 GitHub Actions 生成的 signed release APK。
 2. 在 LSPosed 中启用模块。
 3. LSPosed 应自动推荐 `相册 / com.coloros.gallery3d` 作用域，只保留这个作用域即可。
 4. 强停相册或重启手机。
