@@ -219,6 +219,7 @@ class FeiniuBridgeHook : IXposedHookLoadPackage {
         private val TOKEN_DECRYPTOR_CLASSES = arrayOf(
             "com.oplus.aiunit.vision.erq",
             "com.oplus.aiunit.vision.in80",
+            "com.oplus.aiunit.vision.op80",
         )
         private const val PREFIX_METHOD = "e"
         private const val KNOWN_PREFIX = "tRiM@2025#GwToken!sEcReT*kEy&vALu"

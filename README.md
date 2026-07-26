@@ -5,7 +5,7 @@
 ## 功能
 
 - 只作用于 `com.coloros.gallery3d`。
-- Hook 相册内的 `com.oplus.aiunit.vision.erq.e()`，也就是相册侧 prefix 加载方法。
+- Hook 相册内已知 `TokenDecryptor` 混淆类的 `e()`，也就是相册侧 prefix 加载方法。
 - 优先保留系统原始 `cryptoeng` 路径，只有原方法返回空字符串或 `null` 时才提供 fallback。
 - fallback 会优先解析当前安装的相册 APK dex 字符串池，自动提取包含 `GwToken` 的精确 prefix。
 - 如果 APK 扫描失败，会使用当前已验证的飞牛 token prefix 作为兜底。
@@ -54,7 +54,7 @@ LSPosed/Xposed 要求：
 已在 ColorOS 16 / Android 16 的相册版本上验证。附近版本理论上也可用，但需要保持以下点不变：
 
 - 目标包名：`com.coloros.gallery3d`
-- token 解密类：`com.oplus.aiunit.vision.erq` 或 `com.oplus.aiunit.vision.in80`
+- token 解密类：`com.oplus.aiunit.vision.erq`、`com.oplus.aiunit.vision.in80` 或 `com.oplus.aiunit.vision.op80`
 - prefix 加载方法：`e()`
 - token 密钥派生方式：`SHA-256(prefix + deviceId)`
 
