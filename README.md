@@ -5,7 +5,8 @@
 ## 功能
 
 - 只作用于 `com.coloros.gallery3d`。
-- Hook 相册内已知 token 解密类 `erq`、`in80` 或 `op80` 的 `e()`，也就是相册侧 prefix 加载方法。
+- Hook 相册内 token 解密类的 `e()`，也就是相册侧 prefix 加载方法。
+- 先按已知混淆类名（`erq`、`in80`、`op80`、`qp80`）查找；全部落空时改为按结构在相册 APK 的 dex 里定位，不再依赖类名。
 - 优先保留系统原始 `cryptoeng` 路径，只有原方法返回空字符串或 `null` 时才提供 fallback。
 - fallback 会优先解析当前安装的相册 APK dex 字符串池，自动提取包含 `GwToken` 的精确 prefix。
 - 如果 APK 扫描失败，会使用当前已验证的飞牛 token prefix 作为兜底。
@@ -53,14 +54,24 @@ LSPosed/Xposed 要求：
 
 已在 ColorOS 16 / Android 16 的相册版本上验证。附近版本理论上也可用，但需要保持以下点不变：
 
-相册 16.40.13 已核实使用 `com.oplus.aiunit.vision.op80.e()`。
-
 - 目标包名：`com.coloros.gallery3d`
-- token 解密类：`com.oplus.aiunit.vision.erq`、`com.oplus.aiunit.vision.in80` 或 `com.oplus.aiunit.vision.op80`
-- prefix 加载方法：`e()`
+- prefix 加载方法：`e()`，无参、返回 `String`
+- token 解密入口：`b(String, String)`，返回 `String`
+- token 解密类的日志 tag 字面量：`TokenDecryptor`
 - token 密钥派生方式：`SHA-256(prefix + deviceId)`
 
-如果 OPPO/OnePlus 后续改了混淆类名、方法名或 token 派生方式，模块需要跟进适配。
+相册每次大版本都会重排混淆类名，已核实的对应关系：
+
+| 相册版本 | token 解密类 |
+| --- | --- |
+| 早期 ColorOS 16 | `com.oplus.aiunit.vision.erq` |
+| 早期 ColorOS 16 | `com.oplus.aiunit.vision.in80` |
+| 16.40.13 | `com.oplus.aiunit.vision.op80` |
+| 16.40.22 | `com.oplus.aiunit.vision.qp80` |
+
+所以类名只作为快速路径。四个名字全部失配时，模块会扫描相册 APK 的 dex，找出**同时**声明 `e()` 与 `b(String, String)` 且代码里加载了 `TokenDecryptor` 日志 tag 的类 —— 在 16.40.22 上全 APK 有且仅有一个类满足（`qp80`）。只要上面那几点不变，后续改名不再需要发新版。
+
+如果 OPPO/OnePlus 后续改了方法名、结构或 token 派生方式，模块仍需跟进适配。
 
 ## 构建
 
@@ -115,16 +126,23 @@ app/build/outputs/apk/release/app-release-signed.apk
 LSPosed 日志中应能看到：
 
 ```text
-ColorOSFeiniuBridge: installed for com.coloros.gallery3d
-ColorOSFeiniuBridge: prefix fallback supplied len=33
+ColorOSFeiniuBridge: installed for com.coloros.gallery3d class=com.oplus.aiunit.vision.qp80 via=known-name
+ColorOSFeiniuBridge: prefix fallback supplied source=apk-dex len=33
 ```
+
+`via=` 说明目标类是怎么找到的：
+
+- `known-name`：命中已知混淆类名，且该类同时带 `b(String, String)` 解密入口。
+- `known-name-unconfirmed`：命中类名但没有解密入口，通常是更早的相册版本。
+- `dex-scan`：类名全部失配，改由 dex 结构定位命中。相册刚升级过大版本时属正常。
 
 随后相册会继续原有连接流程，并连接飞牛 NAS 服务。
 
 ## 排查
 
 - 没有 `ColorOSFeiniuBridge` 日志：模块没有被 LSPosed 加载，检查模块是否启用、作用域是否包含 `com.coloros.gallery3d`、是否重启或强停相册。
-- `install failed: ClassNotFoundException`：相册混淆类名变了，需要重新定位 token 解密类。
+- `prefix fallback unavailable for com.coloros.gallery3d`：模块加载了，但一个可 hook 的目标都没找到 —— 已知类名全部失配，dex 结构定位也没命中。相册的 token 解密结构变了，需要重新适配。
+- `dex scan did not find a token decryptor class`：结构定位扫完全部 dex 无果，同上。
 - 没有 `prefix fallback supplied`：原始 `cryptoeng` 可能已经成功，或者没有触发飞牛入口。
 - fallback 后仍无法连接：检查相册日志里是否有 `AEADBadTagException`、token 过期、NAS 不可达、账号绑定异常等问题。
 - token 解密成功但相册为空：本模块只恢复连接构造，照片索引和同步状态由相册与飞牛 NAS 自身处理。
