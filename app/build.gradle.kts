@@ -30,4 +30,5 @@ kotlin {
 dependencies {
     // Pure legacy Xposed Bridge module. Do not add libxposed entry points here.
     compileOnly("de.robv.android.xposed:api:$xposedCompileApiVersion")
+    testImplementation("junit:junit:4.13.2")
 }
