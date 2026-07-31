@@ -69,32 +69,30 @@ class FeiniuBridgeHook : IXposedHookLoadPackage {
     /**
      * Locates the prefix loader to hook.
      *
-     * The known class names are tried first because that costs a handful of `findClass` calls. Only
-     * when Gallery has reshuffled its obfuscation again do we pay for a structural DEX scan.
+     * A known class is accepted immediately only when its full method contract is confirmed. If
+     * none qualify, structural DEX discovery runs before the name-only fallback kept for legacy
+     * Gallery builds that expose the prefix loader but not the newer decrypt entry point.
      */
     private object TargetResolver {
 
         fun resolve(lpparam: XC_LoadPackage.LoadPackageParam): Target {
-            resolveByName(lpparam)?.let { return it }
-            return resolveByShape(lpparam) ?: Target(emptyList(), null, "none")
-        }
-
-        private fun resolveByName(lpparam: XC_LoadPackage.LoadPackageParam): Target? {
-            val candidates = TokenDecryptorTargets.classNames
+            val knownCandidates = TokenDecryptorTargets.classNames
                 .mapNotNull { className -> findClass(className, lpparam) }
-                .filter { prefixMethodsOf(it).isNotEmpty() }
-            if (candidates.isEmpty()) return null
+            val resolved = TokenDecryptorTargetResolver.resolve(
+                knownCandidates,
+                hasPrefixLoader = { prefixMethodsOf(it).isNotEmpty() },
+                hasDecryptEntryPoint = ::declaresDecryptEntryPoint,
+                locateByShape = { resolveClassByShape(lpparam) },
+            ) ?: return Target(emptyList(), null, "none")
 
-            // A class may keep the obfuscated name while meaning something else entirely, so prefer
-            // one that also carries the decrypt entry point. Older Gallery builds that never had it
-            // still fall through to the plain name match.
-            val confirmed = candidates.filter { declaresDecryptEntryPoint(it) }
-            val chosen = confirmed.firstOrNull() ?: candidates.first()
-            val source = if (confirmed.isNotEmpty()) "known-name" else "known-name-unconfirmed"
-            return Target(prefixMethodsOf(chosen), chosen.name, source)
+            return Target(
+                prefixMethodsOf(resolved.target),
+                resolved.target.name,
+                resolved.source.logValue,
+            )
         }
 
-        private fun resolveByShape(lpparam: XC_LoadPackage.LoadPackageParam): Target? {
+        private fun resolveClassByShape(lpparam: XC_LoadPackage.LoadPackageParam): Class<*>? {
             val className = ApkDex.scan(lpparam) { bytes -> TokenDecryptorLocator.locate(bytes) }
             if (className == null) {
                 log("dex scan did not find a token decryptor class")
@@ -109,7 +107,7 @@ class FeiniuBridgeHook : IXposedHookLoadPackage {
 
             val methods = prefixMethodsOf(clazz)
             if (methods.isEmpty()) return null
-            return Target(methods, className, "dex-scan")
+            return clazz
         }
 
         private fun findClass(className: String, lpparam: XC_LoadPackage.LoadPackageParam): Class<*>? =

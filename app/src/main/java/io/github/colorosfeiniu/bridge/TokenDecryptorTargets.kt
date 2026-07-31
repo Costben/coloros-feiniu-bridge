@@ -4,8 +4,8 @@ package io.github.colorosfeiniu.bridge
  * Describes the Gallery token decryptor the bridge attaches to.
  *
  * OPPO reshuffles the obfuscated class names on nearly every Gallery release, so [classNames] is
- * only the fast path. When none of them resolve, [TokenDecryptorLocator] finds the class by shape
- * instead, using the members and log tag captured here.
+ * only the fast path. When none of them satisfy the full method contract, [TokenDecryptorLocator]
+ * finds the class by shape instead, using the members and log tag captured here.
  */
 internal object TokenDecryptorTargets {
     /**

@@ -6,7 +6,7 @@
 
 - 只作用于 `com.coloros.gallery3d`。
 - Hook 相册内 token 解密类的 `e()`，也就是相册侧 prefix 加载方法。
-- 先按已知混淆类名（`erq`、`in80`、`op80`、`qp80`）查找；全部落空时改为按结构在相册 APK 的 dex 里定位，不再依赖类名。
+- 先按已知混淆类名（`erq`、`in80`、`op80`、`qp80`）和完整方法结构查找；未确认命中时按结构扫描相册 APK 的 dex，扫描失败后才使用兼容旧版相册的类名 fallback。
 - 优先保留系统原始 `cryptoeng` 路径，只有原方法返回空字符串或 `null` 时才提供 fallback。
 - fallback 会优先解析当前安装的相册 APK dex 字符串池，自动提取包含 `GwToken` 的精确 prefix。
 - 如果 APK 扫描失败，会使用当前已验证的飞牛 token prefix 作为兜底。
@@ -69,7 +69,9 @@ LSPosed/Xposed 要求：
 | 16.40.13 | `com.oplus.aiunit.vision.op80` |
 | 16.40.22 | `com.oplus.aiunit.vision.qp80` |
 
-所以类名只作为快速路径。四个名字全部失配时，模块会扫描相册 APK 的 dex，找出**同时**声明 `e()` 与 `b(String, String)` 且代码里加载了 `TokenDecryptor` 日志 tag 的类 —— 在 16.40.22 上全 APK 有且仅有一个类满足（`qp80`）。只要上面那几点不变，后续改名不再需要发新版。
+16.40.22 的真实 DEX 与设备 hook 验证记录见 [`docs/validation/gallery-16.40.22.md`](docs/validation/gallery-16.40.22.md)。
+
+所以类名只作为快速路径。已知类全部失配或不满足完整方法结构时，模块会扫描相册 APK 的 dex，找出**同时**声明 `e()` 与 `b(String, String)` 且代码里加载了 `TokenDecryptor` 日志 tag 的类 —— 在 16.40.22 上全 APK 有且仅有一个类满足（`qp80`）。只要上面那几点不变，后续改名不再需要发新版。结构扫描仍无结果时，才会按类名兼容缺少 `b(String, String)` 标记的早期版本。
 
 如果 OPPO/OnePlus 后续改了方法名、结构或 token 派生方式，模块仍需跟进适配。
 
@@ -133,8 +135,8 @@ ColorOSFeiniuBridge: prefix fallback supplied source=apk-dex len=33
 `via=` 说明目标类是怎么找到的：
 
 - `known-name`：命中已知混淆类名，且该类同时带 `b(String, String)` 解密入口。
-- `known-name-unconfirmed`：命中类名但没有解密入口，通常是更早的相册版本。
-- `dex-scan`：类名全部失配，改由 dex 结构定位命中。相册刚升级过大版本时属正常。
+- `dex-scan`：已知类名全部失配或不满足完整解密结构，改由 dex 结构定位命中。相册刚升级过大版本时属正常。
+- `known-name-unconfirmed`：DEX 结构扫描失败后，回退到仅确认 `e()` 的旧版已知类。
 
 随后相册会继续原有连接流程，并连接飞牛 NAS 服务。
 

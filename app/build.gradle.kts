@@ -32,3 +32,9 @@ dependencies {
     compileOnly("de.robv.android.xposed:api:$xposedCompileApiVersion")
     testImplementation("junit:junit:4.13.2")
 }
+
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    System.getProperty("gallery.dex.path")?.let { path ->
+        systemProperty("gallery.dex.path", path)
+    }
+}
