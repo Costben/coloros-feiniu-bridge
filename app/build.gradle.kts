@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.colorosfeiniu.bridge"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.1.4"
+        versionCode = 6
+        versionName = "0.1.5"
     }
 
     compileOptions {
@@ -31,4 +31,10 @@ dependencies {
     // Pure legacy Xposed Bridge module. Do not add libxposed entry points here.
     compileOnly("de.robv.android.xposed:api:$xposedCompileApiVersion")
     testImplementation("junit:junit:4.13.2")
+}
+
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    System.getProperty("gallery.dex.path")?.let { path ->
+        systemProperty("gallery.dex.path", path)
+    }
 }

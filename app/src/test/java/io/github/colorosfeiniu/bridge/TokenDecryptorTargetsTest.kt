@@ -11,6 +11,7 @@ class TokenDecryptorTargetsTest {
                 "com.oplus.aiunit.vision.erq",
                 "com.oplus.aiunit.vision.in80",
                 "com.oplus.aiunit.vision.op80",
+                "com.oplus.aiunit.vision.qp80",
             ),
             TokenDecryptorTargets.classNames,
         )
